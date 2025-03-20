@@ -3,6 +3,7 @@ package task
 import (
 	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
+	"log/slog"
 	"time"
 )
 
@@ -61,6 +62,9 @@ type Task struct {
 
 	// FinishTime is the time when the Task was completed.
 	FinishTime time.Time
+
+	// Logger is used to log the relevant information/error/warning messages.
+	Logger *slog.Logger
 }
 
 // Event represents a change in the Task state.
