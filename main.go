@@ -1,28 +1,39 @@
 package main
 
 import (
-	"github.com/golang-collections/collections/queue"
-	"github.com/praaatik/tesseract/logger"
-	"github.com/praaatik/tesseract/worker"
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/praaatik/tesseract/node"
+	"github.com/praaatik/tesseract/task"
 )
 
 func main() {
-	w1 := worker.Worker{
-		Name:      "w1",
-		TaskQueue: queue.Queue{},
-		TaskDb:    nil,
-		TaskCount: 0,
-		Logger:    logger.Logger.With("worker", "w1"),
+	t := task.Task{
+		ID:     uuid.New(),
+		Name:   "Task-1",
+		State:  task.Pending,
+		Image:  "Image-1",
+		Memory: 1024,
+		Disk:   1,
 	}
-	w1.StartTask()
 
-	w2 := worker.Worker{
-		Name:      "w2",
-		TaskQueue: queue.Queue{},
-		TaskDb:    nil,
-		TaskCount: 0,
-		Logger:    logger.Logger.With("worker", "w2"),
+	e := task.Event{
+		ID:        uuid.New(),
+		State:     task.Pending,
+		Timestamp: time.Now(),
+		Task:      t,
 	}
-	w2.StartTask()
-	w2.CollectStatistics()
+	fmt.Println(e)
+
+	n := node.Node{
+		Name:   "Node-1",
+		Ip:     "192.168.1.1",
+		Cores:  4,
+		Memory: 1024,
+		Disk:   25,
+		Role:   "worker",
+	}
+	fmt.Printf("node: %v\n", n)
 }
