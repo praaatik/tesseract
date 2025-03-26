@@ -3,6 +3,9 @@
 build:
 	go build -o bin/tesseract ./main.go
 
+run:
+	./bin/tesseract
+
 test:
 	go test ./... -v
 

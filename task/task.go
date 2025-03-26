@@ -15,26 +15,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// State represents the current lifecycle state of a Task.
-type State int
-
-const (
-	// Pending is the initial state when the Task is enqueued.
-	Pending State = iota
-
-	// Scheduled state indicates that the system has determined a machine can run a task, but in process to send it.
-	Scheduled
-
-	// Running state indicates that task has been moved to the machine and is executing.
-	Running
-
-	// Completed state indicates when Task has completed successfully.
-	Completed
-
-	// Failed state indicates the Task has stopped working as expected or crashed.
-	Failed
-)
-
 // Task is the smallest unit of work to be performed.
 // This struct might be extended with more fields.
 type Task struct {
@@ -55,6 +35,9 @@ type Task struct {
 
 	// Disk is useful to identify the disk the Task would require.
 	Disk int
+
+	Cpu         float64
+	ContainerID string
 
 	// ExposedPorts defines the ports that the Task container will expose.
 	ExposedPorts nat.PortSet
@@ -198,14 +181,26 @@ func (d *Docker) Run() DockerResult {
 		return DockerResult{Error: err}
 	}
 
-	return DockerResult{}
+	return DockerResult{
+		Error:       nil,
+		ContainerId: resp.ID,
+		Action:      "start",
+		Result:      "success",
+	}
 }
 
 func (d *Docker) Stop(id string) DockerResult {
-	log.Printf("Stopping container %s\n", id)
+	log.Printf("Attempting to stop container with ID: %s\n", id)
 	ctx := context.Background()
 
-	err := d.Client.ContainerStop(ctx, id, container.StopOptions{})
+	// Check if the container exists
+	_, err := d.Client.ContainerInspect(ctx, id)
+	if err != nil {
+		log.Printf("Container %s not found or error inspecting: %v\n", id, err)
+		return DockerResult{Action: "stop", Result: "container not found", Error: err}
+	}
+
+	err = d.Client.ContainerStop(ctx, id, container.StopOptions{})
 	if err != nil {
 		log.Printf("Error stopping container %s: %v\n", id, err)
 		return DockerResult{Error: err}
@@ -216,11 +211,55 @@ func (d *Docker) Stop(id string) DockerResult {
 		RemoveLinks:   false,
 		Force:         false,
 	})
-
 	if err != nil {
 		log.Printf("Error removing container %s: %v\n", id, err)
 		return DockerResult{Error: err}
 	}
 
+	log.Printf("Successfully stopped and removed container %s\n", id)
 	return DockerResult{Action: "stop", Result: "success", Error: nil}
+}
+
+//func (d *Docker) Stop(id string) DockerResult {
+//	log.Printf("Stopping container %s\n", id)
+//	ctx := context.Background()
+//
+//	err := d.Client.ContainerStop(ctx, id, container.StopOptions{})
+//	if err != nil {
+//		log.Printf("Error stopping container %s: %v\n", id, err)
+//		return DockerResult{Error: err}
+//	}
+//
+//	err = d.Client.ContainerRemove(ctx, id, container.RemoveOptions{
+//		RemoveVolumes: true,
+//		RemoveLinks:   false,
+//		Force:         false,
+//	})
+//
+//	if err != nil {
+//		log.Printf("Error removing container %s: %v\n", id, err)
+//		return DockerResult{Error: err}
+//	}
+//
+//	return DockerResult{Action: "stop", Result: "success", Error: nil}
+//}
+
+func NewDocker(c *Config) *Docker {
+	dc, _ := client.NewClientWithOpts(client.FromEnv)
+	return &Docker{
+		Client: dc,
+		Config: *c,
+	}
+}
+
+func NewConfig(t *Task) *Config {
+	return &Config{
+		Name:          t.Name,
+		ExposedPorts:  t.ExposedPorts,
+		Image:         t.Image,
+		Cpu:           t.Cpu,
+		Memory:        int64(t.Memory),
+		Disk:          int64(t.Disk),
+		RestartPolicy: t.RestartPolicy,
+	}
 }
