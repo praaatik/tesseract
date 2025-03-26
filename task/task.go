@@ -1,9 +1,18 @@
 package task
 
 import (
+	"context"
+	"io"
+	"log"
+	"math"
+	"os"
+	"time"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
-	"time"
 )
 
 // State represents the current lifecycle state of a Task.
@@ -71,4 +80,147 @@ type Event struct {
 	State     State
 	Timestamp time.Time
 	Task      Task
+}
+
+// Config struct is used to hold the docker container configuration
+type Config struct {
+	// Name is used to identify the Task.
+	Name string
+
+	// AttachStdin specifies if the stdin should be attached to the Task.
+	AttachStdin bool
+
+	// AttachStdout specifies if the stdout should be attached to the Task.
+	AttachStdout bool
+
+	// AttachStderr specifies if the stderr should be attached to the Task.
+	AttachStderr bool
+
+	// ExposedPorts defines the ports that the Task container will expose.
+	ExposedPorts nat.PortSet
+
+	// Cmd specifies the Command to be executed in the container.
+	Cmd []string
+
+	// Memory is useful to identify the memory the Task would require.
+	// int64 to be compatible with Docker library.
+	Memory int64
+
+	// Cpu units to be used by the Task.
+	Cpu float64
+
+	// Disk is useful to identify the disk the Task would require.
+	// int64 to be compatible with Docker library.
+	Disk int64
+
+	// Env holds the environment variables to be passed to the Task.
+	Env []string
+
+	// RestartPolicy specifies the restart policy - always / unless-stopped / on-failure
+	RestartPolicy string
+
+	// Image specifies the Image the Task should run.
+	Image string
+}
+
+// Docker struct is used to run a task as a Docker container
+type Docker struct {
+	// Client holds the Docker client used to interact with Docker API
+	Client *client.Client
+
+	// Config holds the configuration of the docker container
+	Config Config
+}
+
+// DockerResult contains the result of the docker container execution
+type DockerResult struct {
+	// Error is used to hold error messages
+	Error error
+
+	// Action being taken, start, stop, etc
+	Action string
+
+	// ContainerId has the current ID of the container being run
+	ContainerId string
+	//
+	// Result holds text to provide more information on the output
+	Result string
+}
+
+// Run method actually runs the container
+// 1. pull the Docker image from the container repository
+// 2. ImagePull to pull the image
+// 3. Check if ImagePull was successful
+// 4. Return to standard output
+// Equivalent to `docker run` command
+func (d *Docker) Run() DockerResult {
+	ctx := context.Background()
+	reader, err := d.Client.ImagePull(ctx, d.Config.Image, image.PullOptions{})
+	if err != nil {
+		log.Printf("Error pulling image %s: %v\n", d.Config.Image, err)
+		return DockerResult{Error: err}
+	}
+	_, err = io.Copy(os.Stdout, reader)
+
+	// Required for host configuration
+	restartPolicy := container.RestartPolicy{
+		Name: container.RestartPolicyMode(d.Config.RestartPolicy),
+	}
+
+	// Required for host configuration
+	resources := container.Resources{
+		Memory:   d.Config.Memory,
+		NanoCPUs: int64(d.Config.Cpu * math.Pow(10, 9)),
+	}
+
+	hostConfig := container.HostConfig{
+		RestartPolicy:   restartPolicy,
+		Resources:       resources,
+		PublishAllPorts: true,
+	}
+
+	containerConfiguration := container.Config{
+		Image:        d.Config.Image,
+		Tty:          false,
+		Env:          d.Config.Env,
+		ExposedPorts: d.Config.ExposedPorts,
+	}
+
+	resp, err := d.Client.ContainerCreate(ctx, &containerConfiguration, &hostConfig, nil, nil, d.Config.Name)
+	if err != nil {
+		log.Printf("Error creating container %s: %v\n", d.Config.Image, err)
+		return DockerResult{Error: err}
+	}
+
+	err = d.Client.ContainerStart(ctx, resp.ID, container.StartOptions{})
+	if err != nil {
+		log.Printf("Error starting container %s: %v\n", d.Config.Image, err)
+		return DockerResult{Error: err}
+	}
+
+	return DockerResult{}
+}
+
+func (d *Docker) Stop(id string) DockerResult {
+	log.Printf("Stopping container %s\n", id)
+	ctx := context.Background()
+
+	err := d.Client.ContainerStop(ctx, id, container.StopOptions{})
+	if err != nil {
+		log.Printf("Error stopping container %s: %v\n", id, err)
+		return DockerResult{Error: err}
+	}
+
+	err = d.Client.ContainerRemove(ctx, id, container.RemoveOptions{
+		RemoveVolumes: true,
+		RemoveLinks:   false,
+		Force:         false,
+	})
+
+	if err != nil {
+		log.Printf("Error removing container %s: %v\n", id, err)
+		return DockerResult{Error: err}
+	}
+
+	return DockerResult{Action: "stop", Result: "success", Error: nil}
 }
