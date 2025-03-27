@@ -6,6 +6,15 @@ build:
 run:
 	./bin/tesseract
 
+run-debug:
+	./bin/tesseract -loglevel=DEBUG
+
+run-error:
+	./bin/tesseract -loglevel=ERROR
+
+run-warn:
+	./bin/tesseract -loglevel=WARN
+
 test:
 	go test ./... -v
 
