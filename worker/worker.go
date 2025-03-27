@@ -37,7 +37,7 @@ func (w *Worker) StartTask(t task.Task) task.DockerResult {
 	w.Logger.Info("Starting task: %v", t.ID)
 
 	config := task.NewConfig(&t)
-	d := task.NewDocker(config)
+	d := task.NewDocker(config, w.Logger)
 
 	result := d.Run()
 	if result.Error != nil {
@@ -64,7 +64,7 @@ func (w *Worker) StopTask(t task.Task) task.DockerResult {
 	w.Logger.Info("Stopping task %v with container %v", t.ID, t.ContainerID)
 
 	config := task.NewConfig(&t)
-	d := task.NewDocker(config)
+	d := task.NewDocker(config, w.Logger)
 
 	result := d.Stop(t.ContainerID)
 
@@ -75,8 +75,6 @@ func (w *Worker) StopTask(t task.Task) task.DockerResult {
 	t.FinishTime = time.Now().UTC()
 	t.State = task.Completed
 	w.TaskDb[t.ID] = &t
-	// log.Printf("Stopped and removed container %v for task %v\n",
-	// 	t.ContainerID, t.ID)
 
 	w.Logger.Info("Stopped and removed container %v for task %v", t.ContainerID, t.ID)
 
@@ -89,6 +87,7 @@ func (w *Worker) RunTask() task.DockerResult {
 		w.Logger.Warn("No tasks in the queue")
 		return task.DockerResult{Error: nil}
 	}
+
 	taskQueued := t.(task.Task)
 	taskPersisted := w.TaskDb[taskQueued.ID]
 	if taskPersisted == nil {

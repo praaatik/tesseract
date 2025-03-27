@@ -36,15 +36,17 @@ func main() {
 	}
 
 	t := task.Task{
-		ID:    uuid.New(),
-		Name:  fmt.Sprintf("test-container-1-%d", rand.IntN(1000)),
-		State: task.Scheduled,
-		Image: "strm/helloworld-http",
+		ID:     uuid.New(),
+		Name:   fmt.Sprintf("test-container-1-%d", rand.IntN(1000)),
+		State:  task.Scheduled,
+		Image:  "strm/helloworld-http",
+		Logger: logger,
 	}
 
 	// first time the worker will see the task
 	w.AddTask(t)
 	result := w.RunTask()
+
 	if result.Error != nil {
 		panic(result.Error)
 	}

@@ -234,11 +234,19 @@ func (d *Docker) Stop(id string) DockerResult {
 	return DockerResult{Action: "stop", Result: "success", Error: nil}
 }
 
-func NewDocker(c *Config) *Docker {
-	dc, _ := client.NewClientWithOpts(client.FromEnv)
+func NewDocker(c *Config, logger *logger.Logger) *Docker {
+	dc, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		logger.Error("Failed to create a Docker client: %v", err)
+		//
+		//TODO: think of something better error handling here
+		return nil
+	}
+
 	return &Docker{
 		Client: dc,
 		Config: *c,
+		Logger: logger,
 	}
 }
 

@@ -1,5 +1,7 @@
 package node
 
+import "github.com/praaatik/tesseract/logger"
+
 // Node represents the machine on which the Task is running.
 type Node struct {
 	// Name of the node
@@ -27,4 +29,5 @@ type Node struct {
 
 	// TaskCount is the number of Tasks the Node uses to keep track.
 	TaskCount int
+	Logger    *logger.Logger
 }
