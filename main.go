@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"math/rand/v2"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/golang-collections/collections/queue"
@@ -15,6 +15,8 @@ import (
 )
 
 func main() {
+	host := os.Getenv("CUBE_HOST")
+	port, _ := strconv.Atoi(os.Getenv("CUBE_PORT"))
 
 	logLevelStr := flag.String("loglevel", "INFO", "Set logging level (DEBUG, INFO, WARN, ERROR)")
 	flag.Parse()
@@ -26,39 +28,35 @@ func main() {
 		logLevel = logger.INFO
 	}
 
-	db := make(map[uuid.UUID]*task.Task)
 	logger := logger.NewLogger("main: ", logLevel)
 
 	w := worker.Worker{
 		TaskQueue: queue.New(),
-		TaskDb:    db,
+		TaskDb:    make(map[uuid.UUID]*task.Task),
 		Logger:    logger,
 	}
 
-	t := task.Task{
-		ID:     uuid.New(),
-		Name:   fmt.Sprintf("test-container-1-%d", rand.IntN(1000)),
-		State:  task.Scheduled,
-		Image:  "strm/helloworld-http",
-		Logger: logger,
+	api := worker.Api{
+		Address: host,
+		Port:    port,
+		Worker:  &w,
 	}
 
-	// first time the worker will see the task
-	w.AddTask(t)
-	result := w.RunTask()
+	go runTasks(&w)
+	api.Start()
+}
 
-	if result.Error != nil {
-		panic(result.Error)
-	}
-
-	t.ContainerID = result.ContainerId
-
-	time.Sleep(time.Second * 1)
-
-	t.State = task.Completed
-	w.AddTask(t)
-	result = w.RunTask()
-	if result.Error != nil {
-		panic(result.Error)
+func runTasks(w *worker.Worker) {
+	for {
+		if w.TaskQueue.Len() != 0 {
+			result := w.RunTask()
+			if result.Error != nil {
+				w.Logger.Error("Error running task: %v\n", result.Error)
+			}
+		} else {
+			w.Logger.Info("No tasks to process currently.\n")
+		}
+		w.Logger.Info("Sleeping for 10 seconds.")
+		time.Sleep(10 * time.Second)
 	}
 }

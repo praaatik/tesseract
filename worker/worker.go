@@ -121,3 +121,11 @@ func (w *Worker) CollectStatistics() {
 	// TODO: implementation
 	w.Logger.Debug("Collecting statistics (not implemented yet).")
 }
+
+func (w *Worker) GetTasks() []*task.Task {
+	existingTasks := []*task.Task{}
+	for _, t := range w.TaskDb {
+		existingTasks = append(existingTasks, t)
+	}
+	return existingTasks
+}

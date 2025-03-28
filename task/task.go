@@ -60,6 +60,7 @@ type Task struct {
 // Event represents a change in the Task state.
 // Users don't interact with this, it is triggered whenever there is a change in the Task state.
 // Renamed from TaskEvent to Event because of - https://go.dev/blog/package-names
+// This is what the Manager sends to the Worker (encoded).
 type Event struct {
 	ID        uuid.UUID
 	State     State
