@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/praaatik/tesseract/task"
@@ -13,6 +14,8 @@ import (
 func (a *Api) StartTaskHandler(w http.ResponseWriter, r *http.Request) {
 	d := json.NewDecoder(r.Body)
 	d.DisallowUnknownFields()
+
+	a.Logger.Debug(fmt.Sprintf("StartTaskHandler reached with data - %v\n", d))
 
 	te := task.Event{}
 	err := d.Decode(&te)
@@ -27,6 +30,12 @@ func (a *Api) StartTaskHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(e)
 		return
 	}
+	a.Worker.AddTask(te.Task)
+	a.Logger.Info(fmt.Sprintf("Added task %v\n", te.Task.ID))
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(te.Task)
+
+	return
 }
 
 func (a *Api) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
@@ -36,12 +45,15 @@ func (a *Api) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Api) StopTaskHandler(w http.ResponseWriter, r *http.Request) {
-	taskId := r.URL.Query().Get("taskID")
+	pathSegments := strings.Split(r.URL.Path, "/")
+	taskId := pathSegments[len(pathSegments)-1]
+
 	if taskId == "" {
 		a.Logger.Error("No taskID in the request\n")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
 	tID, err := uuid.Parse(taskId)
 	if err != nil {
 		a.Logger.Error("Invalid taskID format: %v\n", err)

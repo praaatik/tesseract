@@ -40,6 +40,7 @@ func main() {
 		Address: host,
 		Port:    port,
 		Worker:  &w,
+		Logger:  logger,
 	}
 
 	go runTasks(&w)

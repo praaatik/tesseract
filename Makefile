@@ -1,4 +1,4 @@
-.PHONY: build test bench clean cover
+.PHONY: build test bench clean cover create-task delete-task
 
 build:
 	go build -o bin/tesseract ./main.go
@@ -28,6 +28,22 @@ bench:
 clean:
 	rm -rf bin/
 	rm -f coverage.out coverage.html
+
+TASK_ID := 266592cd-960d-4091-981c-8c25c44b1018
+HOST := localhost:5555
+
+get-tasks:
+	http -v GET http://localhost:5555/tasks
+
+create-task:
+	http -v POST $(HOST)/tasks \
+		Content-Type:application/json \
+		ID=$(TASK_ID) \
+		State:=2 \
+		Task:='{"State": 1, "ID": "$(TASK_ID)", "Name": "test-chapter-5-1", "Image": "strm/helloworld-http"}'
+
+delete-task:
+	http -v DELETE $(HOST)/tasks/$(TASK_ID)
 
 help:
 	@echo "Available commands:"
