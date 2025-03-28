@@ -29,6 +29,10 @@ type Worker struct {
 	// TaskCount keeps a track of the number of Tasks at any given time.
 	TaskCount int
 
+	// Stats relating to the current usage
+	Stats *Stats
+
+	// Logger is used to assist with logging for different levels
 	Logger *logger.Logger
 }
 
@@ -117,9 +121,13 @@ func (w *Worker) RunTask() task.DockerResult {
 	return result
 }
 
-func (w *Worker) CollectStatistics() {
-	// TODO: implementation
-	w.Logger.Debug("Collecting statistics (not implemented yet).")
+func (w *Worker) CollectStats() {
+	for {
+		w.Logger.Debug("Collecting statistics.")
+		w.Stats = GetStats()
+		w.Stats.TaskCount = w.TaskCount
+		time.Sleep(15 * time.Second)
+	}
 }
 
 func (w *Worker) GetTasks() []*task.Task {

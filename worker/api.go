@@ -31,6 +31,9 @@ func (a *Api) initRouter() {
 
 	// Stopping tasks (deleting)
 	a.Router.HandleFunc("DELETE /tasks/{taskID}", a.StopTaskHandler)
+
+	// Get the statistics
+	a.Router.HandleFunc("/stats", a.StatsHandler)
 }
 
 func (a *Api) Start() {
